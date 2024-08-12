@@ -1,3 +1,7 @@
+use getch_rs::{Getch, Key};
+use std::thread;
+use std::time::Duration;
+
 pub const WIDTH: usize = 10;
 pub const HEIGHT: usize = 20;
 
@@ -9,9 +13,17 @@ pub const CYAN_TILE: &str = "\x1b[36m██\x1b[0m";
 pub const ORANGE_TILE: &str = "\x1b[33m██\x1b[0m";
 pub const MAGENTA_TILE: &str = "\x1b[35m██\x1b[0m";
 
+pub const RED_GHOST: &str = "\x1b[31m░░\x1b[0m";
+pub const GREEN_GHOST: &str = "\x1b[32m░░\x1b[0m";
+pub const YELLOW_GHOST: &str = "\x1b[33m░░\x1b[0m";
+pub const BLUE_GHOST: &str = "\x1b[34m░░\x1b[0m";
+pub const CYAN_GHOST: &str = "\x1b[36m░░\x1b[0m";
+pub const ORANGE_GHOST: &str = "\x1b[33m░░\x1b[0m";
+pub const MAGENTA_GHOST: &str = "\x1b[35m░░\x1b[0m";
+
 type Shape = [[bool; 4]; 4];
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum Status {
     Empty,
     FillType(TetronimoType),
@@ -21,70 +33,148 @@ pub struct Board {
     width: usize,
     height: usize,
     tiles: Vec<Vec<Status>>,
+    active_tetronimo: Option<Tetronimo>,
+    x: usize,
+    y: usize,
 }
 
 impl Board {
-    pub fn new(width: usize, height: usize) -> Self {
-        let tiles = vec![vec![Status::Empty; width]; height];
+    pub fn new(dims: (usize, usize)) -> Self {
+        let tiles = vec![vec![Status::Empty; dims.0]; dims.1];
+        let at = Tetronimo::new(TetronimoType::O);
 
         Board {
-            width,
-            height,
+            width: dims.0,
+            height: dims.1,
             tiles,
+            active_tetronimo: Some(at),
+            x: dims.0 / 2 - 2,
+            y: 0,
+        }
+    }
+
+    pub fn collision_check(&self, offset: (i32, i32)) -> bool {
+        for y in 0..4 {
+            for x in 0..4 {
+                if self.active_tetronimo.as_ref().unwrap().shape[y][x] {
+                    if self.y as i32 + y as i32 + offset.1 >= self.height as i32
+                        || self.x as i32 + x as i32 + offset.0 < 0
+                    {
+                        return true;
+                    }
+                } else {
+                    continue;
+                }
+
+                // if self.tiles[(y as i32 + self.y as i32 + offset.1) as usize]
+                //     [(x as i32 + self.x as i32 + offset.0) as usize]
+                //     != Status::Empty
+                // {
+                //     return true;
+                // }
+            }
+        }
+
+        false
+    }
+
+    pub fn hard_drop(&mut self) {
+        self.clear();
+
+        loop {
+            if self.collision_check((0, 1)) {
+                break;
+            }
+            self.y += 1;
+        }
+        self.draw();
+    }
+
+    pub fn draw(&mut self) {
+        self.draw_at(false);
+    }
+
+    pub fn clear(&mut self) {
+        self.draw_at(true);
+    }
+
+    pub fn move_tetronimo(&mut self, offset: (i32, i32)) {
+        if self.collision_check(offset) {
+            self.clear();
+            self.x = (self.x as i32 + offset.0) as usize;
+            self.y = (self.y as i32 + offset.1) as usize;
+            self.draw();
+        }
+    }
+
+    pub fn draw_at(&mut self, del: bool) {
+        if let Some(tetronimo) = &self.active_tetronimo {
+            for row in 0..4 {
+                for col in 0..4 {
+                    if tetronimo.shape[row][col] {
+                        if del {
+                            self.tiles[row + self.y][col + self.x] = Status::Empty
+                        } else {
+                            self.tiles[row + self.y][col + self.x] =
+                                Status::FillType(tetronimo.tr_type)
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 pub const I_MINO: [[bool; 4]; 4] = [
-    [false, false, false, false],
     [true, true, true, true],
+    [false, false, false, false],
     [false, false, false, false],
     [false, false, false, false],
 ];
 
 pub const O_MINO: [[bool; 4]; 4] = [
+    [false, true, true, false],
+    [false, true, true, false],
     [false, false, false, false],
-    [false, true, true, false],
-    [false, true, true, false],
     [false, false, false, false],
 ];
 
 pub const T_MINO: [[bool; 4]; 4] = [
-    [false, false, false, false],
     [false, true, false, false],
     [true, true, true, false],
+    [false, false, false, false],
     [false, false, false, false],
 ];
 
 pub const S_MINO: [[bool; 4]; 4] = [
-    [false, false, false, false],
     [false, true, true, false],
     [true, true, false, false],
+    [false, false, false, false],
     [false, false, false, false],
 ];
 
 pub const Z_MINO: [[bool; 4]; 4] = [
-    [false, false, false, false],
     [true, true, false, false],
     [false, true, true, false],
+    [false, false, false, false],
     [false, false, false, false],
 ];
 
 pub const J_MINO: [[bool; 4]; 4] = [
-    [false, false, false, false],
     [true, false, false, false],
     [true, true, true, false],
+    [false, false, false, false],
     [false, false, false, false],
 ];
 
 pub const L_MINO: [[bool; 4]; 4] = [
-    [false, false, false, false],
     [false, false, true, false],
     [true, true, true, false],
     [false, false, false, false],
+    [false, false, false, false],
 ];
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub enum TetronimoType {
     I,
     O,
@@ -95,6 +185,7 @@ pub enum TetronimoType {
     L,
 }
 
+#[derive(Clone, PartialEq)]
 pub struct Tetronimo {
     shape: Shape,
     tr_type: TetronimoType,
@@ -133,19 +224,6 @@ impl Tetronimo {
             },
         }
     }
-
-    pub fn draw(&self) {
-        let color = get_tile_color(self.tr_type);
-
-        for (y, row) in self.shape.iter().enumerate() {
-            for (x, &cell) in row.iter().enumerate() {
-                if cell {
-                    // Move the cursor to the correct position and print the block
-                    print!("\x1b[{};{}H{}", y, x * 2 + 1, color);
-                }
-            }
-        }
-    }
 }
 
 fn get_tile_color(mino: TetronimoType) -> &'static str {
@@ -160,12 +238,28 @@ fn get_tile_color(mino: TetronimoType) -> &'static str {
     }
 }
 
+fn get_ghost_color(mino: TetronimoType) -> &'static str {
+    match mino {
+        TetronimoType::I => CYAN_GHOST,
+        TetronimoType::O => YELLOW_GHOST,
+        TetronimoType::T => MAGENTA_GHOST,
+        TetronimoType::S => GREEN_GHOST,
+        TetronimoType::Z => RED_GHOST,
+        TetronimoType::J => BLUE_GHOST,
+        TetronimoType::L => ORANGE_GHOST,
+    }
+}
+
 fn main() {
-    let board = Board::new(WIDTH, HEIGHT);
+    let mut board = Board::new((WIDTH, HEIGHT));
+    let g = Getch::new();
 
     loop {
+        // Drawing loop
         println!("\x1b[2J\x1b[H\x1b[?25l");
         println!("\x1b[H");
+
+        board.draw_at(false);
 
         for y in 0..board.height + 1 {
             for x in 0..board.width + 2 {
@@ -187,7 +281,26 @@ fn main() {
             println!();
         }
 
-        std::thread::sleep(std::time::Duration::from_millis(1000 / 60));
+        // Input loop
+
+        match g.getch() {
+            Ok(Key::Char('q')) => break,
+            Ok(Key::Char(' ')) => {
+                board.hard_drop();
+            }
+            Ok(Key::Right) => {
+                board.move_tetronimo((1, 0));
+            }
+            Ok(Key::Left) => {
+                board.move_tetronimo((-1, 0));
+            }
+            Ok(Key::Down) => {
+                board.move_tetronimo((0, 1));
+            }
+            Ok(_) => (),
+            Err(_) => break,
+        }
+
+        thread::sleep(Duration::from_millis(1000 / 60));
     }
 }
-
