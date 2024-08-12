@@ -1,6 +1,8 @@
 use getch_rs::{Getch, Key};
 use std::thread;
 use std::time::Duration;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 
 pub const WIDTH: usize = 10;
 pub const HEIGHT: usize = 20;
@@ -23,39 +25,68 @@ pub const MAGENTA_GHOST: &str = "\x1b[35m░░\x1b[0m";
 
 type Shape = [[bool; 4]; 4];
 
+fn gen_bag() -> Vec<TetrominoType>{
+    let mut bag = vec![
+        TetrominoType::I,
+        TetrominoType::O,
+        TetrominoType::T,
+        TetrominoType::S,
+        TetrominoType::Z,
+        TetrominoType::J,
+        TetrominoType::L,
+    ];
+
+    let mut rng = thread_rng();
+
+    bag.shuffle(&mut rng);
+    bag
+}
+
 #[derive(Copy, Clone, PartialEq)]
 pub enum Status {
     Empty,
-    FillType(TetronimoType),
+    FillType(TetrominoType),
 }
 
 pub struct Board {
     width: usize,
     height: usize,
     tiles: Vec<Vec<Status>>,
-    active_tetronimo: Option<Tetronimo>,
+    active_tetromino: Option<Tetromino>,
     x: i32,
     y: i32,
+    upcoming: Vec<TetrominoType>
 }
 
 impl Board {
     pub fn new(dims: (usize, usize)) -> Self {
         let tiles = vec![vec![Status::Empty; dims.0]; dims.1];
-        let at = Tetronimo::new(TetronimoType::T);
+
+        let mut upcoming = gen_bag();
+        upcoming.extend(gen_bag());
+
+        let at = Tetromino::new(upcoming.remove(0));
 
         Board {
             width: dims.0,
             height: dims.1,
             tiles,
-            active_tetronimo: Some(at),
+            active_tetromino: Some(at),
             x: (dims.0 / 2 - 2) as i32,
             y: 0,
+            upcoming
         }
     }
 
-    pub fn new_tetronimo(&mut self) {
-        let at = Tetronimo::new(TetronimoType::T);
-        self.active_tetronimo = Some(at);
+
+    pub fn new_tetromino(&mut self) {
+        let at = Tetromino::new(self.upcoming.remove(0));
+    
+        if self.upcoming.len() < 7 {
+            self.upcoming.extend(gen_bag());
+        }
+
+        self.active_tetromino = Some(at);
         self.x = (self.width / 2 - 2) as i32;
         self.y = 0;
     }
@@ -63,7 +94,7 @@ impl Board {
     pub fn collision_check(&self, offset: (i32, i32)) -> bool {
         for y in 0..4 {
             for x in 0..4 {
-                if self.active_tetronimo.as_ref().unwrap().shape[y][x] {
+                if self.active_tetromino.as_ref().unwrap().shape[y][x] {
                     if self.y as i32 + y as i32 + offset.1 >= self.height as i32
                         || self.x as i32 + x as i32 + offset.0 < 0
                         || self.x as i32 + x as i32 + offset.0 >= self.width as i32
@@ -97,7 +128,7 @@ impl Board {
             self.y += 1;
         }
         self.draw();
-        self.new_tetronimo();
+        self.new_tetromino();
     }
 
     pub fn draw(&mut self) {
@@ -108,7 +139,7 @@ impl Board {
         self.draw_at(true);
     }
 
-    pub fn move_tetronimo(&mut self, offset: (i32, i32)) {
+    pub fn move_tetromino(&mut self, offset: (i32, i32)) {
         self.clear();
         if !self.collision_check(offset) {
             self.x = self.x + offset.0;
@@ -118,17 +149,17 @@ impl Board {
     }
 
     pub fn draw_at(&mut self, del: bool) {
-        if let Some(tetronimo) = &self.active_tetronimo {
+        if let Some(tetromino) = &self.active_tetromino {
             for row in 0..4 {
                 for col in 0..4 {
-                    if tetronimo.shape[row][col] {
+                    if tetromino.shape[row][col] {
                         if del {
                             self.tiles[(row as i32 + self.y) as usize]
                                 [(col as i32 + self.x) as usize] = Status::Empty
                         } else {
                             self.tiles[(row as i32 + self.y) as usize]
                                 [(col as i32 + self.x) as usize] =
-                                Status::FillType(tetronimo.tr_type)
+                                Status::FillType(tetromino.tr_type)
                         }
                     }
                 }
@@ -187,7 +218,7 @@ pub const L_MINO: [[bool; 4]; 4] = [
 ];
 
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub enum TetronimoType {
+pub enum TetrominoType {
     I,
     O,
     T,
@@ -198,67 +229,67 @@ pub enum TetronimoType {
 }
 
 #[derive(Clone, PartialEq)]
-pub struct Tetronimo {
+pub struct Tetromino {
     shape: Shape,
-    tr_type: TetronimoType,
+    tr_type: TetrominoType,
 }
 
-impl Tetronimo {
-    pub fn new(mino: TetronimoType) -> Self {
+impl Tetromino {
+    pub fn new(mino: TetrominoType) -> Self {
         match mino {
-            TetronimoType::I => Tetronimo {
+            TetrominoType::I => Tetromino {
                 shape: I_MINO,
-                tr_type: TetronimoType::I,
+                tr_type: TetrominoType::I,
             },
-            TetronimoType::O => Tetronimo {
+            TetrominoType::O => Tetromino {
                 shape: O_MINO,
-                tr_type: TetronimoType::O,
+                tr_type: TetrominoType::O,
             },
-            TetronimoType::T => Tetronimo {
+            TetrominoType::T => Tetromino {
                 shape: T_MINO,
-                tr_type: TetronimoType::T,
+                tr_type: TetrominoType::T,
             },
-            TetronimoType::S => Tetronimo {
+            TetrominoType::S => Tetromino {
                 shape: S_MINO,
-                tr_type: TetronimoType::S,
+                tr_type: TetrominoType::S,
             },
-            TetronimoType::Z => Tetronimo {
+            TetrominoType::Z => Tetromino {
                 shape: Z_MINO,
-                tr_type: TetronimoType::Z,
+                tr_type: TetrominoType::Z,
             },
-            TetronimoType::J => Tetronimo {
+            TetrominoType::J => Tetromino {
                 shape: J_MINO,
-                tr_type: TetronimoType::J,
+                tr_type: TetrominoType::J,
             },
-            TetronimoType::L => Tetronimo {
+            TetrominoType::L => Tetromino {
                 shape: L_MINO,
-                tr_type: TetronimoType::L,
+                tr_type: TetrominoType::L,
             },
         }
     }
 }
 
-fn get_tile_color(mino: TetronimoType) -> &'static str {
+fn get_tile_color(mino: TetrominoType) -> &'static str {
     match mino {
-        TetronimoType::I => CYAN_TILE,
-        TetronimoType::O => YELLOW_TILE,
-        TetronimoType::T => MAGENTA_TILE,
-        TetronimoType::S => GREEN_TILE,
-        TetronimoType::Z => RED_TILE,
-        TetronimoType::J => BLUE_TILE,
-        TetronimoType::L => ORANGE_TILE,
+        TetrominoType::I => CYAN_TILE,
+        TetrominoType::O => YELLOW_TILE,
+        TetrominoType::T => MAGENTA_TILE,
+        TetrominoType::S => GREEN_TILE,
+        TetrominoType::Z => RED_TILE,
+        TetrominoType::J => BLUE_TILE,
+        TetrominoType::L => ORANGE_TILE,
     }
 }
 
-fn get_ghost_color(mino: TetronimoType) -> &'static str {
+fn get_ghost_color(mino: TetrominoType) -> &'static str {
     match mino {
-        TetronimoType::I => CYAN_GHOST,
-        TetronimoType::O => YELLOW_GHOST,
-        TetronimoType::T => MAGENTA_GHOST,
-        TetronimoType::S => GREEN_GHOST,
-        TetronimoType::Z => RED_GHOST,
-        TetronimoType::J => BLUE_GHOST,
-        TetronimoType::L => ORANGE_GHOST,
+        TetrominoType::I => CYAN_GHOST,
+        TetrominoType::O => YELLOW_GHOST,
+        TetrominoType::T => MAGENTA_GHOST,
+        TetrominoType::S => GREEN_GHOST,
+        TetrominoType::Z => RED_GHOST,
+        TetrominoType::J => BLUE_GHOST,
+        TetrominoType::L => ORANGE_GHOST,
     }
 }
 
@@ -301,13 +332,13 @@ fn main() {
                 board.hard_drop();
             }
             Ok(Key::Right) => {
-                board.move_tetronimo((1, 0));
+                board.move_tetromino((1, 0));
             }
             Ok(Key::Left) => {
-                board.move_tetronimo((-1, 0));
+                board.move_tetromino((-1, 0));
             }
             Ok(Key::Down) => {
-                board.move_tetronimo((0, 1));
+                board.move_tetromino((0, 1));
             }
             Ok(_) => (),
             Err(_) => break,
