@@ -34,23 +34,30 @@ pub struct Board {
     height: usize,
     tiles: Vec<Vec<Status>>,
     active_tetronimo: Option<Tetronimo>,
-    x: usize,
-    y: usize,
+    x: i32,
+    y: i32,
 }
 
 impl Board {
     pub fn new(dims: (usize, usize)) -> Self {
         let tiles = vec![vec![Status::Empty; dims.0]; dims.1];
-        let at = Tetronimo::new(TetronimoType::O);
+        let at = Tetronimo::new(TetronimoType::T);
 
         Board {
             width: dims.0,
             height: dims.1,
             tiles,
             active_tetronimo: Some(at),
-            x: dims.0 / 2 - 2,
+            x: (dims.0 / 2 - 2) as i32,
             y: 0,
         }
+    }
+
+    pub fn new_tetronimo(&mut self) {
+        let at = Tetronimo::new(TetronimoType::T);
+        self.active_tetronimo = Some(at);
+        self.x = (self.width / 2 - 2) as i32;
+        self.y = 0;
     }
 
     pub fn collision_check(&self, offset: (i32, i32)) -> bool {
@@ -59,19 +66,21 @@ impl Board {
                 if self.active_tetronimo.as_ref().unwrap().shape[y][x] {
                     if self.y as i32 + y as i32 + offset.1 >= self.height as i32
                         || self.x as i32 + x as i32 + offset.0 < 0
+                        || self.x as i32 + x as i32 + offset.0 >= self.width as i32
                     {
                         return true;
                     }
+
+                    if self.tiles[(self.y + y as i32 + offset.1) as usize]
+                        [(self.x + x as i32 + offset.0) as usize]
+                        != Status::Empty
+                    {
+                        return true;
+                    }
+
                 } else {
                     continue;
                 }
-
-                // if self.tiles[(y as i32 + self.y as i32 + offset.1) as usize]
-                //     [(x as i32 + self.x as i32 + offset.0) as usize]
-                //     != Status::Empty
-                // {
-                //     return true;
-                // }
             }
         }
 
@@ -88,6 +97,7 @@ impl Board {
             self.y += 1;
         }
         self.draw();
+        self.new_tetronimo();
     }
 
     pub fn draw(&mut self) {
@@ -99,12 +109,12 @@ impl Board {
     }
 
     pub fn move_tetronimo(&mut self, offset: (i32, i32)) {
-        if self.collision_check(offset) {
-            self.clear();
-            self.x = (self.x as i32 + offset.0) as usize;
-            self.y = (self.y as i32 + offset.1) as usize;
-            self.draw();
+        self.clear();
+        if !self.collision_check(offset) {
+            self.x = self.x + offset.0;
+            self.y = self.y + offset.1;
         }
+        self.draw();
     }
 
     pub fn draw_at(&mut self, del: bool) {
@@ -113,9 +123,11 @@ impl Board {
                 for col in 0..4 {
                     if tetronimo.shape[row][col] {
                         if del {
-                            self.tiles[row + self.y][col + self.x] = Status::Empty
+                            self.tiles[(row as i32 + self.y) as usize]
+                                [(col as i32 + self.x) as usize] = Status::Empty
                         } else {
-                            self.tiles[row + self.y][col + self.x] =
+                            self.tiles[(row as i32 + self.y) as usize]
+                                [(col as i32 + self.x) as usize] =
                                 Status::FillType(tetronimo.tr_type)
                         }
                     }
@@ -284,7 +296,7 @@ fn main() {
         // Input loop
 
         match g.getch() {
-            Ok(Key::Char('q')) => break,
+            Ok(Key::Ctrl('c')) => break,
             Ok(Key::Char(' ')) => {
                 board.hard_drop();
             }
