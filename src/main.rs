@@ -1,10 +1,15 @@
-pub mod mino;
 pub mod board;
-pub mod util;
 pub mod constants;
+pub mod mino;
+pub mod util;
 
 use constants::{HEIGHT, WIDTH};
-use getch_rs::{Getch, Key};
+use crossterm::event::{
+    self, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
+};
+use crossterm::terminal::enable_raw_mode;
+use crossterm::{cursor, execute, queue, style::Print, terminal};
+use std::io::{stdout, Write};
 use std::thread;
 use std::time::Duration;
 
@@ -13,13 +18,35 @@ use board::{Board, Status};
 use crate::util::{get_ghost_color, get_tile_color};
 
 fn main() {
+    let mut stdout = stdout();
+    enable_raw_mode().unwrap();
+
+    execute!(
+        stdout,
+        PushKeyboardEnhancementFlags(
+            KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES
+                | KeyboardEnhancementFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES
+        )
+    )
+    .unwrap();
+
     let mut board = Board::new((WIDTH, HEIGHT));
-    let g = Getch::new();
+
+    let mut frame_count = 0;
+    let start = std::time::Instant::now();
+    let mut fps;
 
     loop {
         // Drawing loop
-        println!("\x1b[2J\x1b[H\x1b[?25l");
-        println!("\x1b[H");
+        frame_count += 1;
+        let duration = start.elapsed().as_secs_f64();
+        fps = frame_count as f64 / duration;
+
+        execute!(stdout, terminal::Clear(terminal::ClearType::All)).unwrap();
+        execute!(stdout, cursor::MoveTo(0, 0)).unwrap();
+        execute!(stdout, cursor::Hide).unwrap();
+
+        print!("fps: {:.2}\r\n", fps);
 
         board.apply_gravity();
         board.draw_at(false);
@@ -27,13 +54,17 @@ fn main() {
         for y in 0..board.height + 1 {
             for x in 0..board.width + 2 {
                 if x == 0 && y == board.height {
-                    print!("└");
+                    // print!("└");
+                    print!("▀");
                 } else if x == board.width + 1 && y == board.height {
-                    print!("┘");
+                    // print!("┘");
+                    print!("▀");
                 } else if x == 0 || x == board.width + 1 {
-                    print!("|");
+                    // print!("|");
+                    print!("█");
                 } else if y == board.height {
-                    print!("--");
+                    // print!("--");
+                    print!("▀▀");
                 } else {
                     match board.tiles[y][x - 1] {
                         Status::Empty => print!("  "),
@@ -42,38 +73,51 @@ fn main() {
                     }
                 }
             }
-            println!();
+            // println!();
+            execute!(stdout, Print("\r\n")).unwrap();
         }
 
         // Input loop
 
-        match g.getch() {
-            Ok(Key::Ctrl('c')) => break,
-            Ok(Key::Char(' ')) => {
-                board.hard_drop();
+        if event::poll(Duration::from_millis(10)).unwrap() {
+            if let event::Event::Key(event) = event::read().unwrap() {
+                match event.code {
+                    event::KeyCode::Char('c')
+                        if event.modifiers.contains(event::KeyModifiers::CONTROL) =>
+                    {
+                        execute!(stdout, PopKeyboardEnhancementFlags).unwrap();
+                        terminal::disable_raw_mode().unwrap();
+                        break;
+                    }
+                    event::KeyCode::Char(' ') => {
+                        board.hard_drop();
+                    }
+                    event::KeyCode::Right => {
+                        board.move_tetromino((1, 0));
+                    }
+                    event::KeyCode::Left => {
+                        board.move_tetromino((-1, 0));
+                    }
+                    event::KeyCode::Down => {
+                        board.move_tetromino((0, 1));
+                    }
+                    event::KeyCode::Up => {
+                        board.rotate_c();
+                    }
+                    event::KeyCode::Modifier(event::ModifierKeyCode::LeftControl) => {
+                        board.rotate_cc();
+                    }
+                    event::KeyCode::Modifier(event::ModifierKeyCode::LeftShift) => {
+                        board.hold_piece();
+                    }
+                    _ => (),
+                }
             }
-            Ok(Key::Right) => {
-                board.move_tetromino((1, 0));
-            }
-            Ok(Key::Left) => {
-                board.move_tetromino((-1, 0));
-            }
-            Ok(Key::Down) => {
-                board.move_tetromino((0, 1));
-            }
-            Ok(Key::Up) => {
-                board.rotate_c();
-            }
-            Ok(Key::Char('z')) => {
-                board.rotate_cc();
-            }
-            Ok(Key::Char('x')) => {
-                board.hold_piece();
-            }
-            _ => , 
         }
 
+        // Input loop
 
-        thread::sleep(Duration::from_millis(1000 / 60));
+        thread::sleep(Duration::from_millis(1000 / 120));
     }
 }
+

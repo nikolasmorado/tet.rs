@@ -48,6 +48,15 @@ impl Board {
         }
     }
 
+    fn check_loss(&mut self) -> bool {
+        if let Some(ref mino) = self.active_tetromino {
+            if self.y == 0 && self.collision_check(mino, (0, 0)) {
+                return true;
+            }
+        }
+        false
+    }
+
     fn clear_lines(&mut self) {
         let mut lines = Vec::new();
 
@@ -84,6 +93,15 @@ impl Board {
         self.active_tetromino = Some(at);
         self.x = (self.width / 2 - 2) as i32;
         self.y = 0;
+
+        if self.check_loss() {
+            self.tiles = vec![vec![Status::Empty; self.width]; self.height];
+            self.upcoming = gen_bag();
+            self.upcoming.extend(gen_bag());
+            self.held_piece = None;
+            self.held = false;
+            self.active_tetromino = Some(Tetromino::new(self.upcoming.remove(0)));
+        }
     }
 
     pub fn rotate_cc(&mut self) {
@@ -152,6 +170,20 @@ impl Board {
         }
 
         false
+    }
+
+    pub fn soft_harddrop(&mut self) {
+        if let Some(ref mut mino) = self.active_tetromino.clone() {
+            self.clear();
+
+            loop {
+                if self.collision_check(mino, (0, 1)) {
+                    break;
+                }
+                self.y += 1;
+            }
+            self.draw();
+        }
     }
 
     pub fn hard_drop(&mut self) {
