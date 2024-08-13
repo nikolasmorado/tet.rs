@@ -11,6 +11,17 @@ pub enum TetrominoType {
     L,
 }
 
+#[derive(Copy, Clone, PartialEq)]
+pub enum GhostType {
+    I_G,
+    O_G,
+    T_G,
+    S_G,
+    Z_G,
+    J_G,
+    L_G,
+}
+
 #[derive(Clone, PartialEq)]
 pub struct Tetromino {
     pub shape: Shape,
@@ -53,51 +64,51 @@ impl Tetromino {
 }
 
 pub const I_MINO: [[bool; 4]; 4] = [
-    [true, true, true, true],
     [false, false, false, false],
+    [true, true, true, true],
     [false, false, false, false],
     [false, false, false, false],
 ];
 
 pub const O_MINO: [[bool; 4]; 4] = [
-    [false, true, true, false],
-    [false, true, true, false],
     [false, false, false, false],
+    [false, true, true, false],
+    [false, true, true, false],
     [false, false, false, false],
 ];
 
 pub const T_MINO: [[bool; 4]; 4] = [
+    [false, false, false, false],
     [false, true, false, false],
     [true, true, true, false],
-    [false, false, false, false],
     [false, false, false, false],
 ];
 
 pub const S_MINO: [[bool; 4]; 4] = [
+    [false, false, false, false],
     [false, true, true, false],
     [true, true, false, false],
-    [false, false, false, false],
     [false, false, false, false],
 ];
 
 pub const Z_MINO: [[bool; 4]; 4] = [
+    [false, false, false, false],
     [true, true, false, false],
     [false, true, true, false],
-    [false, false, false, false],
     [false, false, false, false],
 ];
 
 pub const J_MINO: [[bool; 4]; 4] = [
+    [false, false, false, false],
     [true, false, false, false],
     [true, true, true, false],
-    [false, false, false, false],
     [false, false, false, false],
 ];
 
 pub const L_MINO: [[bool; 4]; 4] = [
+    [false, false, false, false],
     [false, false, true, false],
     [true, true, true, false],
-    [false, false, false, false],
     [false, false, false, false],
 ];
 

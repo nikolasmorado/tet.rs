@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use board::{Board, Status};
 
-use crate::util::get_tile_color;
+use crate::util::{get_ghost_color, get_tile_color};
 
 fn main() {
     let mut board = Board::new((WIDTH, HEIGHT));
@@ -21,6 +21,7 @@ fn main() {
         println!("\x1b[2J\x1b[H\x1b[?25l");
         println!("\x1b[H");
 
+        board.apply_gravity();
         board.draw_at(false);
 
         for y in 0..board.height + 1 {
@@ -37,6 +38,7 @@ fn main() {
                     match board.tiles[y][x - 1] {
                         Status::Empty => print!("  "),
                         Status::FillType(mino) => print!("{}", get_tile_color(mino)),
+                        Status::FillGhost(mino) => print!("{}", get_ghost_color(mino)),
                     }
                 }
             }
@@ -59,9 +61,18 @@ fn main() {
             Ok(Key::Down) => {
                 board.move_tetromino((0, 1));
             }
-            Ok(_) => (),
-            Err(_) => break,
+            Ok(Key::Up) => {
+                board.rotate_c();
+            }
+            Ok(Key::Char('z')) => {
+                board.rotate_cc();
+            }
+            Ok(Key::Char('x')) => {
+                board.hold_piece();
+            }
+            _ => , 
         }
+
 
         thread::sleep(Duration::from_millis(1000 / 60));
     }
