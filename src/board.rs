@@ -12,11 +12,20 @@ pub enum Status {
     FillGhost(GhostType),
 }
 
+pub enum RotationDirection {
+    Clockwise,
+    CounterClockwise,
+}
+
 pub struct Board {
     pub width: usize,
     pub height: usize,
     pub tiles: Vec<Vec<Status>>,
-    pub col_buffer: Vec<Vec<bool>>,
+    pub pieces_placed: usize,
+    pub lines_cleared: usize,
+    pub upcoming_tiles: Vec<Vec<Status>>,
+    pub held_tiles: Vec<Vec<Status>>,
+    col_buffer: Vec<Vec<bool>>,
     active_tetromino: Option<Tetromino>,
     x: i32,
     y: i32,
@@ -31,21 +40,70 @@ pub struct Board {
     lock_delay_cur: Duration,
 }
 
+macro_rules! draw_piece {
+    ($tiles:expr, $data:expr, $sizex:expr, $sizey:expr, $del:expr, $tr_type:expr, $x:expr, $y:expr, $orientation:expr, $ghost: expr) => {{
+        for row in 0..$sizey {
+            for col in 0..$sizex {
+                if $data[$orientation][row][col] {
+                    if $del {
+                        $tiles[(row as i32 + $y) as usize][(col as i32 + $x) as usize] =
+                            Status::Empty;
+                    } else {
+                        $tiles[(row as i32 + $y) as usize][(col as i32 + $x) as usize] =
+                            match $ghost {
+                                true => Status::FillGhost(mino_to_ghost($tr_type)),
+                                false => Status::FillType($tr_type),
+                            };
+                    }
+                }
+            }
+        }
+    }};
+}
+
+macro_rules! check_col {
+    ($self:expr, $data:expr, $sizex:expr, $sizey:expr, $offset:expr) => {
+        for y in 0..$sizey {
+            for x in 0..$sizex {
+                if $data[y][x] {
+                    if $self.y as i32 + y as i32 + $offset.1 >= $self.height as i32
+                        || $self.x as i32 + x as i32 + $offset.0 < 0
+                        || $self.x as i32 + x as i32 + $offset.0 >= $self.width as i32
+                    {
+                        return true;
+                    }
+
+                    if $self.col_buffer[($self.y + y as i32 + $offset.1) as usize]
+                        [($self.x + x as i32 + $offset.0) as usize]
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+    };
+}
+
 impl Board {
     pub fn new(dims: (usize, usize)) -> Self {
         let tiles = vec![vec![Status::Empty; dims.0]; dims.1 + 10];
         let col_buffer = vec![vec![false; dims.0]; dims.1 + 10];
+        let upcoming_tiles = vec![vec![Status::Empty; 4]; 20];
+        let held_tiles = vec![vec![Status::Empty; 4]; 4];
+
 
         let mut upcoming = gen_bag();
         upcoming.extend(gen_bag());
-
-        // let at = Tetromino::new(upcoming.remove(0));
 
         Board {
             width: dims.0,
             height: dims.1 + 10,
             tiles,
             col_buffer,
+            pieces_placed: 0,
+            lines_cleared: 0,
+            upcoming_tiles,
+            held_tiles,
             active_tetromino: None,
             x: (dims.0 / 2 - 2) as i32,
             y: 10,
@@ -70,6 +128,129 @@ impl Board {
         false
     }
 
+
+    fn clear_upcoming(&mut self) {
+        for y in 0..20 {
+            for x in 0..4 {
+                self.upcoming_tiles[y][x] = Status::Empty;
+            }
+        }
+    }
+
+    fn clear_held(&mut self) {
+        for y in 0..4 {
+            for x in 0..4 {
+                self.held_tiles[y][x] = Status::Empty;
+            }
+        }
+    }
+
+    fn draw_upcoming(&mut self) {
+        for (index, mino) in self.upcoming.iter().enumerate() {
+            let at = Tetromino::new(*mino);
+
+            if index > 4 {
+                break;
+            }
+
+            match at.piece_data {
+                PieceData::Small(data) => {
+                    draw_piece!(
+                        self.upcoming_tiles,
+                        data,
+                        3,
+                        3,
+                        false,
+                        at.tr_type,
+                        0,
+                        index as i32 * 4,
+                        at.orientation,
+                        false
+                    );
+                }
+                PieceData::Medium(data) => {
+                    draw_piece!(
+                        self.upcoming_tiles,
+                        data,
+                        4,
+                        3,
+                        false,
+                        at.tr_type,
+                        0,
+                        index as i32 * 4,
+                        at.orientation,
+                        false
+                    );
+                }
+                PieceData::Large(data) => {
+                    draw_piece!(
+                        self.upcoming_tiles,
+                        data,
+                        4,
+                        4,
+                        false,
+                        at.tr_type,
+                        0,
+                        index as i32 * 4,
+                        at.orientation,
+                        false
+                    );
+                }
+            }
+        }
+    }
+
+    fn draw_held(&mut self) {
+        if let Some(mino) = self.held_piece {
+            let at = Tetromino::new(mino);
+
+            match at.piece_data {
+                PieceData::Small(data) => {
+                    draw_piece!(
+                        self.held_tiles,
+                        data,
+                        3,
+                        3,
+                        false,
+                        at.tr_type,
+                        0,
+                        0,
+                        at.orientation,
+                        false
+                    );
+                }
+                PieceData::Medium(data) => {
+                    draw_piece!(
+                        self.held_tiles,
+                        data,
+                        4,
+                        3,
+                        false,
+                        at.tr_type,
+                        0,
+                        0,
+                        at.orientation,
+                        false
+                    );
+                }
+                PieceData::Large(data) => {
+                    draw_piece!(
+                        self.held_tiles,
+                        data,
+                        4,
+                        4,
+                        false,
+                        at.tr_type,
+                        0,
+                        0,
+                        at.orientation,
+                        false
+                    );
+                }
+            }
+        }
+    }
+
     fn clear_lines(&mut self) {
         let mut lines = Vec::new();
 
@@ -84,6 +265,7 @@ impl Board {
 
             if full {
                 lines.push(y);
+                self.lines_cleared += 1;
             }
         }
 
@@ -100,6 +282,9 @@ impl Board {
     pub fn new_tetromino(&mut self) {
         let at = Tetromino::new(self.upcoming.remove(0));
 
+        self.clear_upcoming();
+        self.draw_upcoming();
+
         if self.upcoming.len() < 7 {
             self.upcoming.extend(gen_bag());
         }
@@ -115,6 +300,8 @@ impl Board {
             self.upcoming.extend(gen_bag());
             self.held_piece = None;
             self.held = false;
+            self.clear_upcoming();
+            self.clear_held();
             self.active_tetromino = Some(Tetromino::new(self.upcoming.remove(0)));
             self.x = (self.width / 2 - 2) as i32;
             self.y = 10;
@@ -123,20 +310,33 @@ impl Board {
         }
     }
 
-    pub fn rotate_cc(&mut self) {
+    pub fn rotate(&mut self, dir: RotationDirection) {
         let original = self.active_tetromino.as_ref().unwrap().clone();
         let mut mino = self.active_tetromino.as_mut().unwrap().clone();
 
-        let table_entry = match mino.orientation {
-            0 => 7,
-            1 => 1,
-            2 => 3,
-            _ => 5,
+        let table_entry = match dir {
+            RotationDirection::Clockwise => match mino.orientation {
+                0 => 0,
+                1 => 2,
+                2 => 4,
+                _ => 6,
+            },
+            RotationDirection::CounterClockwise => match mino.orientation {
+                0 => 7,
+                1 => 1,
+                2 => 3,
+                _ => 5,
+            },
         };
-        mino.orientation = (mino.orientation + 3) % 4;
+
+        mino.orientation = match dir {
+            RotationDirection::Clockwise => (mino.orientation + 1) % 4,
+            RotationDirection::CounterClockwise => (mino.orientation + 3) % 4,
+        };
 
         let kick_table = match mino.piece_data {
             PieceData::Small(_) => SMALL_MINO_KICK_TABLE,
+            PieceData::Medium(_) => SMALL_MINO_KICK_TABLE,
             PieceData::Large(_) => LARGE_MINO_KICK_TABLE,
         };
 
@@ -165,51 +365,7 @@ impl Board {
         }
 
         if self.lock_delay_cur < self.lock_delay_max {
-            self.lock_delay_cur += Duration::from_millis(500);
-        }
-
-        self.draw();
-    }
-
-    pub fn rotate_c(&mut self) {
-        let original = self.active_tetromino.as_ref().unwrap().clone();
-        let mut mino = self.active_tetromino.as_mut().unwrap().clone();
-
-        let table_entry = match mino.orientation {
-            0 => 0,
-            1 => 2,
-            2 => 4,
-            _ => 6,
-        };
-
-        mino.orientation = (mino.orientation + 1) % 4;
-
-        let kick_table = match mino.piece_data {
-            PieceData::Small(_) => SMALL_MINO_KICK_TABLE,
-            PieceData::Large(_) => LARGE_MINO_KICK_TABLE,
-        };
-
-        self.clear();
-
-        let mut pass = false;
-
-        for &(x, y) in &kick_table[table_entry][..5] {
-            if !self.collision_check_buffer(&mino, (x as i32, y as i32)) {
-                self.x += x as i32;
-                self.y += y as i32;
-                self.active_tetromino = Some(mino);
-                pass = true;
-
-                break;
-            }
-        }
-
-        if !pass {
-            self.active_tetromino = Some(original);
-        }
-
-        if self.lock_delay_cur < self.lock_delay_max {
-            self.lock_delay_cur += Duration::from_millis(500);
+            self.lock_delay_cur += self.lock_delay_interval;
         }
 
         self.draw();
@@ -217,110 +373,9 @@ impl Board {
 
     fn collision_check_buffer(&self, mino: &Tetromino, offset: (i32, i32)) -> bool {
         match mino.piece_data {
-            PieceData::Small(data) => {
-                for y in 0..3 {
-                    for x in 0..3 {
-                        if data[mino.orientation][y][x] {
-                            if self.y as i32 + y as i32 + offset.1 >= self.height as i32
-                                || self.x as i32 + x as i32 + offset.0 < 0
-                                || self.x as i32 + x as i32 + offset.0 >= self.width as i32
-                            {
-                                return true;
-                            }
-
-                            if self.col_buffer[(self.y + y as i32 + offset.1) as usize]
-                                [(self.x + x as i32 + offset.0) as usize]
-                            {
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-            PieceData::Large(data) => {
-                for y in 0..5 {
-                    for x in 0..5 {
-                        if data[mino.orientation][y][x] {
-                            if self.y as i32 + y as i32 + offset.1 >= self.height as i32
-                                || self.x as i32 + x as i32 + offset.0 < 0
-                                || self.x as i32 + x as i32 + offset.0 >= self.width as i32
-                            {
-                                return true;
-                            }
-
-                            if self.col_buffer[(self.y + y as i32 + offset.1) as usize]
-                                [(self.x + x as i32 + offset.0) as usize]
-                            {
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        false
-    }
-
-    fn collision_check(&self, mino: &Tetromino, offset: (i32, i32)) -> bool {
-        match mino.piece_data {
-            PieceData::Small(data) => {
-                for y in 0..3 {
-                    for x in 0..3 {
-                        if data[mino.orientation][y][x] {
-                            if self.y as i32 + y as i32 + offset.1 >= self.height as i32
-                                || self.x as i32 + x as i32 + offset.0 < 0
-                                || self.x as i32 + x as i32 + offset.0 >= self.width as i32
-                            {
-                                println!(
-                                    "BOUNDS s({},{}), p({},{}),  +({},{}) => ({},{})",
-                                    self.x,
-                                    self.y,
-                                    x,
-                                    y,
-                                    offset.0,
-                                    offset.1,
-                                    self.x as i32 + x as i32 + offset.0,
-                                    self.y as i32 + y as i32 + offset.1
-                                );
-                                return true;
-                            }
-
-                            match self.tiles[(self.y + y as i32 + offset.1) as usize]
-                                [(self.x + x as i32 + offset.0) as usize]
-                            {
-                                Status::Empty | Status::FillGhost(_) => continue,
-                                _ => return true,
-                            }
-                        } else {
-                            continue;
-                        }
-                    }
-                }
-            }
-            PieceData::Large(data) => {
-                for y in 0..5 {
-                    for x in 0..5 {
-                        if data[mino.orientation][y][x] {
-                            if self.y as i32 + y as i32 + offset.1 >= self.height as i32
-                                || self.x as i32 + x as i32 + offset.0 < 0
-                                || self.x as i32 + x as i32 + offset.0 >= self.width as i32
-                            {
-                                return true;
-                            }
-
-                            match self.tiles[(self.y + y as i32 + offset.1) as usize]
-                                [(self.x + x as i32 + offset.0) as usize]
-                            {
-                                Status::Empty | Status::FillGhost(_) => continue,
-                                _ => return true,
-                            }
-                        } else {
-                            continue;
-                        }
-                    }
-                }
-            }
+            PieceData::Small(data) => check_col!(self, data[mino.orientation], 3, 3, offset),
+            PieceData::Medium(data) => check_col!(self, data[mino.orientation], 4, 3, offset),
+            PieceData::Large(data) => check_col!(self, data[mino.orientation], 4, 4, offset),
         }
 
         false
@@ -353,9 +408,19 @@ impl Board {
                         }
                     }
                 }
+                PieceData::Medium(data) => {
+                    for row in 0..3 {
+                        for col in 0..4 {
+                            if data[tetromino.orientation][row][col] {
+                                self.col_buffer[(row as i32 + self.y) as usize]
+                                    [(col as i32 + self.x) as usize] = true;
+                            }
+                        }
+                    }
+                }
                 PieceData::Large(data) => {
-                    for row in 0..5 {
-                        for col in 0..5 {
+                    for row in 0..4 {
+                        for col in 0..4 {
                             if data[tetromino.orientation][row][col] {
                                 self.col_buffer[(row as i32 + self.y) as usize]
                                     [(col as i32 + self.x) as usize] = true;
@@ -364,6 +429,7 @@ impl Board {
                     }
                 }
             }
+            self.pieces_placed += 1;
         }
     }
 
@@ -409,7 +475,7 @@ impl Board {
     }
 
     pub fn clear_all_ghosts(&mut self) {
-        for row in 0..self.height {
+        for row in self.y as usize..self.height {
             for col in 0..self.width {
                 match self.tiles[row][col] {
                     Status::FillGhost(_) => self.tiles[row][col] = Status::Empty,
@@ -429,6 +495,8 @@ impl Board {
         let mut held = self.held_piece;
         let mut at = self.active_tetromino.clone().unwrap();
 
+        self.clear_held();
+        self.clear_upcoming();
         self.clear();
 
         if let Some(h) = held {
@@ -443,6 +511,8 @@ impl Board {
         self.active_tetromino = Some(at);
         self.x = (self.width / 2 - 2) as i32;
         self.y = 10;
+        self.draw_held();
+        self.draw_upcoming();
         self.draw();
     }
 
@@ -450,6 +520,7 @@ impl Board {
         if del {
             self.clear_all_ghosts();
         }
+
         if let Some(tetromino) = &self.active_tetromino {
             if !del {
                 let ghost_mino = tetromino.clone();
@@ -460,73 +531,87 @@ impl Board {
                 }
 
                 match ghost_mino.piece_data {
-                    PieceData::Small(data) => {
-                        for row in 0..3 {
-                            for col in 0..3 {
-                                if data[ghost_mino.orientation][row][col] {
-                                    if del {
-                                        self.tiles[(row as i32 + ghost_y) as usize]
-                                            [(col as i32 + self.x) as usize] = Status::Empty
-                                    } else {
-                                        self.tiles[(row as i32 + ghost_y) as usize]
-                                            [(col as i32 + self.x) as usize] =
-                                            Status::FillGhost(mino_to_ghost(tetromino.tr_type))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    PieceData::Large(data) => {
-                        for row in 0..5 {
-                            for col in 0..5 {
-                                if data[ghost_mino.orientation][row][col] {
-                                    if del {
-                                        self.tiles[(row as i32 + ghost_y) as usize]
-                                            [(col as i32 + self.x) as usize] = Status::Empty
-                                    } else {
-                                        self.tiles[(row as i32 + ghost_y) as usize]
-                                            [(col as i32 + self.x) as usize] =
-                                            Status::FillGhost(mino_to_ghost(tetromino.tr_type))
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    PieceData::Small(data) => draw_piece!(
+                        self.tiles,
+                        data,
+                        3,
+                        3,
+                        del,
+                        tetromino.tr_type,
+                        self.x,
+                        ghost_y,
+                        tetromino.orientation,
+                        true
+                    ),
+                    PieceData::Medium(data) => draw_piece!(
+                        self.tiles,
+                        data,
+                        4,
+                        3,
+                        del,
+                        tetromino.tr_type,
+                        self.x,
+                        ghost_y,
+                        tetromino.orientation,
+                        true
+                    ),
+                    PieceData::Large(data) => draw_piece!(
+                        self.tiles,
+                        data,
+                        4,
+                        4,
+                        del,
+                        tetromino.tr_type,
+                        self.x,
+                        ghost_y,
+                        tetromino.orientation,
+                        true
+                    ),
                 }
             }
 
             match tetromino.piece_data {
                 PieceData::Small(data) => {
-                    for row in 0..3 {
-                        for col in 0..3 {
-                            if data[tetromino.orientation][row][col] {
-                                if del {
-                                    self.tiles[(row as i32 + self.y) as usize]
-                                        [(col as i32 + self.x) as usize] = Status::Empty
-                                } else {
-                                    self.tiles[(row as i32 + self.y) as usize]
-                                        [(col as i32 + self.x) as usize] =
-                                        Status::FillType(tetromino.tr_type)
-                                }
-                            }
-                        }
-                    }
+                    draw_piece!(
+                        self.tiles,
+                        data,
+                        3,
+                        3,
+                        del,
+                        tetromino.tr_type,
+                        self.x,
+                        self.y,
+                        tetromino.orientation,
+                        false
+                    );
+                }
+                PieceData::Medium(data) => {
+                    draw_piece!(
+                        self.tiles,
+                        data,
+                        4,
+                        3,
+                        del,
+                        tetromino.tr_type,
+                        self.x,
+                        self.y,
+                        tetromino.orientation,
+                        false
+                    );
                 }
                 PieceData::Large(data) => {
-                    for row in 0..5 {
-                        for col in 0..5 {
-                            if data[tetromino.orientation][row][col] {
-                                if del {
-                                    self.tiles[(row as i32 + self.y) as usize]
-                                        [(col as i32 + self.x) as usize] = Status::Empty
-                                } else {
-                                    self.tiles[(row as i32 + self.y) as usize]
-                                        [(col as i32 + self.x) as usize] =
-                                        Status::FillType(tetromino.tr_type)
-                                }
-                            }
-                        }
-                    }
+                    draw_piece!(
+                        self.tiles,
+                        data,
+                        4,
+                        4,
+                        del,
+                        tetromino.tr_type,
+                        self.x,
+                        self.y,
+                        tetromino.orientation,
+                        false
+                    );
                 }
             }
         }
@@ -553,13 +638,13 @@ impl Board {
             if self.collision_check_buffer(&mino, (0, 1)) {
                 if self.lock_delay_timer.is_none() {
                     self.lock_delay_timer = Some(Instant::now());
-                    self.lock_delay_cur = Duration::from_millis(500);
+                    self.lock_delay_cur = self.lock_delay_interval;
                 }
 
                 if let Some(timer) = self.lock_delay_timer {
                     if timer.elapsed() >= self.lock_delay_cur {
                         self.lock_delay_timer = None;
-                        self.lock_delay_cur = Duration::from_millis(500);
+                        self.lock_delay_cur = self.lock_delay_interval;
 
                         self.held = false;
                         self.lock_piece();

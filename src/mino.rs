@@ -12,18 +12,19 @@ pub enum TetrominoType {
 #[derive(Copy, Clone, PartialEq)]
 pub enum PieceData {
     Small([[[bool; 3]; 3]; 4]),
-    Large([[[bool; 5]; 5]; 4]),
+    Medium([[[bool; 4]; 3]; 4]),
+    Large([[[bool; 4]; 4]; 4]),
 }
 
 #[derive(Copy, Clone, PartialEq)]
 pub enum GhostType {
-    I_G,
-    O_G,
-    T_G,
-    S_G,
-    Z_G,
-    J_G,
-    L_G,
+    I,
+    O,
+    T,
+    S,
+    Z,
+    J,
+    L,
 }
 
 #[derive(Clone, PartialEq)]
@@ -43,7 +44,7 @@ impl Tetromino {
             },
             TetrominoType::O => Tetromino {
                 tr_type: TetrominoType::O,
-                piece_data: PieceData::Small(O_MINO_DATA),
+                piece_data: PieceData::Medium(O_MINO_DATA),
                 orientation: 0,
             },
             TetrominoType::T => Tetromino {
@@ -124,34 +125,30 @@ pub const L_MINO: [[bool; 4]; 4] = [
     [false, false, false, false],
 ];
 
-pub const I_MINO_DATA: [[[bool; 5]; 5]; 4] = [
+pub const I_MINO_DATA: [[[bool; 4]; 4]; 4] = [
     [
-        [false, false, false, false, false],
-        [false, false, false, false, false],
-        [false, true, true, true, true],
-        [false, false, false, false, false],
-        [false, false, false, false, false],
+        [false, false, false, false],
+        [true, true, true, true],
+        [false, false, false, false],
+        [false, false, false, false],
     ],
     [
-        [false, false, false, false, false],
-        [false, false, true, false, false],
-        [false, false, true, false, false],
-        [false, false, true, false, false],
-        [false, false, true, false, false],
+        [false, false, true, false],
+        [false, false, true, false],
+        [false, false, true, false],
+        [false, false, true, false],
     ],
     [
-        [false, false, false, false, false],
-        [false, false, false, false, false],
-        [true, true, true, true, false],
-        [false, false, false, false, false],
-        [false, false, false, false, false],
+        [false, false, false, false],
+        [false, false, false, false],
+        [true, true, true, true],
+        [false, false, false, false],
     ],
     [
-        [false, false, true, false, false],
-        [false, false, true, false, false],
-        [false, false, true, false, false],
-        [false, false, true, false, false],
-        [false, false, false, false, false],
+        [false, true, false, false],
+        [false, true, false, false],
+        [false, true, false, false],
+        [false, true, false, false],
     ],
 ];
 
@@ -201,26 +198,26 @@ pub const L_MINO_DATA: [[[bool; 3]; 3]; 4] = [
     ],
 ];
 
-pub const O_MINO_DATA: [[[bool; 3]; 3]; 4] = [
+pub const O_MINO_DATA: [[[bool; 4]; 3]; 4] = [
     [
-        [false, true, true],
-        [false, true, true],
-        [false, false, false],
+        [false, true, true, false],
+        [false, true, true, false],
+        [false, false, false, false],
     ],
     [
-        [false, false, false],
-        [false, true, true],
-        [false, true, true],
+        [false, true, true, false],
+        [false, true, true, false],
+        [false, false, false, false],
     ],
     [
-        [false, false, false],
-        [true, true, false],
-        [true, true, false],
+        [false, true, true, false],
+        [false, true, true, false],
+        [false, false, false, false],
     ],
     [
-        [true, true, false],
-        [true, true, false],
-        [false, false, false],
+        [false, true, true, false],
+        [false, true, true, false],
+        [false, false, false, false],
     ],
 ];
 

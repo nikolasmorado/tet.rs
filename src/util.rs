@@ -39,24 +39,24 @@ pub fn get_tile_color(mino: TetrominoType) -> &'static str {
 
 pub fn get_ghost_color(mino: GhostType) -> &'static str {
     match mino {
-        GhostType::I_G => CYAN_GHOST,
-        GhostType::O_G => YELLOW_GHOST,
-        GhostType::T_G => MAGENTA_GHOST,
-        GhostType::S_G => GREEN_GHOST,
-        GhostType::Z_G => RED_GHOST,
-        GhostType::J_G => BLUE_GHOST,
-        GhostType::L_G => ORANGE_GHOST,
+        GhostType::I => CYAN_GHOST,
+        GhostType::O => YELLOW_GHOST,
+        GhostType::T => MAGENTA_GHOST,
+        GhostType::S => GREEN_GHOST,
+        GhostType::Z => RED_GHOST,
+        GhostType::J => BLUE_GHOST,
+        GhostType::L => ORANGE_GHOST,
     }
 }
 
 pub fn mino_to_ghost(mino: TetrominoType) -> GhostType {
     match mino {
-        TetrominoType::I => GhostType::I_G,
-        TetrominoType::O => GhostType::O_G,
-        TetrominoType::T => GhostType::T_G,
-        TetrominoType::S => GhostType::S_G,
-        TetrominoType::Z => GhostType::Z_G,
-        TetrominoType::J => GhostType::J_G,
-        TetrominoType::L => GhostType::L_G,
+        TetrominoType::I => GhostType::I,
+        TetrominoType::O => GhostType::O,
+        TetrominoType::T => GhostType::T,
+        TetrominoType::S => GhostType::S,
+        TetrominoType::Z => GhostType::Z,
+        TetrominoType::J => GhostType::J,
+        TetrominoType::L => GhostType::L,
     }
 }
