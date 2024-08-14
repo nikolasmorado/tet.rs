@@ -110,11 +110,14 @@ impl Board {
 
         if self.check_loss() {
             self.tiles = vec![vec![Status::Empty; self.width]; self.height];
+            self.col_buffer = vec![vec![false; self.width]; self.height];
             self.upcoming = gen_bag();
             self.upcoming.extend(gen_bag());
             self.held_piece = None;
             self.held = false;
             self.active_tetromino = Some(Tetromino::new(self.upcoming.remove(0)));
+            self.x = (self.width / 2 - 2) as i32;
+            self.y = 10;
         } else {
             self.move_tetromino((0, 1));
         }
@@ -136,7 +139,6 @@ impl Board {
             PieceData::Small(_) => SMALL_MINO_KICK_TABLE,
             PieceData::Large(_) => LARGE_MINO_KICK_TABLE,
         };
-
 
         self.clear();
 
@@ -160,6 +162,10 @@ impl Board {
 
         if !pass {
             self.active_tetromino = Some(original);
+        }
+
+        if self.lock_delay_cur < self.lock_delay_max {
+            self.lock_delay_cur += Duration::from_millis(500);
         }
 
         self.draw();
@@ -193,12 +199,17 @@ impl Board {
                 self.y += y as i32;
                 self.active_tetromino = Some(mino);
                 pass = true;
+
                 break;
             }
         }
 
         if !pass {
             self.active_tetromino = Some(original);
+        }
+
+        if self.lock_delay_cur < self.lock_delay_max {
+            self.lock_delay_cur += Duration::from_millis(500);
         }
 
         self.draw();

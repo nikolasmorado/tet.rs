@@ -43,16 +43,25 @@ fn main() {
         let duration = start.elapsed().as_secs_f64();
         fps = frame_count as f64 / duration;
 
+        let (cols, rows) = crossterm::terminal::size().unwrap();
+
+        let bx_px = (board.width * 2) + 2;
+        let by_px = (board.height + 1 - 10) + 1; 
+
+        let sx = (cols - bx_px as u16) / 2;
+        let sy = (rows - by_px as u16) / 2 ;
+
+
         execute!(stdout, terminal::Clear(terminal::ClearType::All)).unwrap();
-        execute!(stdout, cursor::MoveTo(0, 0)).unwrap();
+        execute!(stdout, cursor::MoveTo(sx, sy)).unwrap();
         execute!(stdout, cursor::Hide).unwrap();
 
-        print!("fps: {:.2}\r\n", fps);
 
         board.update();
         // board.draw_at(false);
 
         for y in 10..board.height + 1 {
+            execute!(stdout, cursor::MoveTo(sx, sy + y as u16 - 10 )).unwrap();
             for x in 0..board.width + 2 {
                 if x == 0 && y == board.height {
                     // print!("└");
