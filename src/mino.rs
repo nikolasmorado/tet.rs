@@ -1,5 +1,3 @@
-pub type Shape = [[bool; 4]; 4];
-
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum TetrominoType {
     I,
@@ -9,6 +7,12 @@ pub enum TetrominoType {
     Z,
     J,
     L,
+}
+
+#[derive(Copy, Clone, PartialEq)]
+pub enum PieceData {
+    Small([[[bool; 3]; 3]; 4]),
+    Large([[[bool; 5]; 5]; 4]),
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -24,40 +28,48 @@ pub enum GhostType {
 
 #[derive(Clone, PartialEq)]
 pub struct Tetromino {
-    pub shape: Shape,
     pub tr_type: TetrominoType,
+    pub piece_data: PieceData,
+    pub orientation: usize,
 }
 
 impl Tetromino {
     pub fn new(mino: TetrominoType) -> Self {
         match mino {
             TetrominoType::I => Tetromino {
-                shape: I_MINO,
                 tr_type: TetrominoType::I,
+                piece_data: PieceData::Large(I_MINO_DATA),
+                orientation: 0,
             },
             TetrominoType::O => Tetromino {
-                shape: O_MINO,
                 tr_type: TetrominoType::O,
+                piece_data: PieceData::Small(O_MINO_DATA),
+                orientation: 0,
             },
             TetrominoType::T => Tetromino {
-                shape: T_MINO,
                 tr_type: TetrominoType::T,
+                piece_data: PieceData::Small(T_MINO_DATA),
+                orientation: 0,
             },
             TetrominoType::S => Tetromino {
-                shape: S_MINO,
                 tr_type: TetrominoType::S,
+                piece_data: PieceData::Small(S_MINO_DATA),
+                orientation: 0,
             },
             TetrominoType::Z => Tetromino {
-                shape: Z_MINO,
                 tr_type: TetrominoType::Z,
+                piece_data: PieceData::Small(Z_MINO_DATA),
+                orientation: 0,
             },
             TetrominoType::J => Tetromino {
-                shape: J_MINO,
                 tr_type: TetrominoType::J,
+                piece_data: PieceData::Small(J_MINO_DATA),
+                orientation: 0,
             },
             TetrominoType::L => Tetromino {
-                shape: L_MINO,
                 tr_type: TetrominoType::L,
+                piece_data: PieceData::Small(L_MINO_DATA),
+                orientation: 0,
             },
         }
     }
@@ -112,3 +124,172 @@ pub const L_MINO: [[bool; 4]; 4] = [
     [false, false, false, false],
 ];
 
+pub const I_MINO_DATA: [[[bool; 5]; 5]; 4] = [
+    [
+        [false, false, false, false, false],
+        [false, false, false, false, false],
+        [false, true, true, true, true],
+        [false, false, false, false, false],
+        [false, false, false, false, false],
+    ],
+    [
+        [false, false, false, false, false],
+        [false, false, true, false, false],
+        [false, false, true, false, false],
+        [false, false, true, false, false],
+        [false, false, true, false, false],
+    ],
+    [
+        [false, false, false, false, false],
+        [false, false, false, false, false],
+        [true, true, true, true, false],
+        [false, false, false, false, false],
+        [false, false, false, false, false],
+    ],
+    [
+        [false, false, true, false, false],
+        [false, false, true, false, false],
+        [false, false, true, false, false],
+        [false, false, true, false, false],
+        [false, false, false, false, false],
+    ],
+];
+
+
+pub const J_MINO_DATA: [[[bool; 3]; 3]; 4] = [
+    [
+        [true, false, false],
+        [true, true, true],
+        [false, false, false],
+    ],
+    [
+        [false, true, true],
+        [false, true, false],
+        [false, true, false],
+    ],
+    [
+        [false, false, false],
+        [true, true, true],
+        [false, false, true],
+    ],
+    [
+        [false, true, false],
+        [false, true, false],
+        [true, true, false],
+    ],
+];
+
+pub const L_MINO_DATA: [[[bool; 3]; 3]; 4] = [
+    [
+        [false, false, true],
+        [true, true, true],
+        [false, false, false],
+    ],
+    [
+        [false, true, false],
+        [false, true, false],
+        [false, true, true],
+    ],
+    [
+        [false, false, false],
+        [true, true, true],
+        [true, false, false],
+    ],
+    [
+        [true, true, false],
+        [false, true, false],
+        [false, true, false],
+    ],
+];
+
+pub const O_MINO_DATA: [[[bool; 3]; 3]; 4] = [
+    [
+        [false, true, true],
+        [false, true, true],
+        [false, false, false],
+    ],
+    [
+        [false, false, false],
+        [false, true, true],
+        [false, true, true],
+    ],
+    [
+        [false, false, false],
+        [true, true, false],
+        [true, true, false],
+    ],
+    [
+        [true, true, false],
+        [true, true, false],
+        [false, false, false],
+    ],
+];
+
+pub const S_MINO_DATA: [[[bool; 3]; 3]; 4] = [
+    [
+        [false, true, true],
+        [true, true, false],
+        [false, false, false],
+    ],
+    [
+        [false, true, false],
+        [false, true, true],
+        [false, false, true],
+    ],
+    [
+        [false, false, false],
+        [false, true, true],
+        [true, true, false],
+    ],
+    [
+        [true, false, false],
+        [true, true, false],
+        [false, true, false],
+    ],
+];
+
+pub const T_MINO_DATA: [[[bool; 3]; 3]; 4] = [
+    [
+        [false, true, false],
+        [true, true, true],
+        [false, false, false],
+    ],
+    [
+        [false, true, false],
+        [false, true, true],
+        [false, true, false],
+    ],
+    [
+        [false, false, false],
+        [true, true, true],
+        [false, true, false],
+    ],
+    [
+        [false, true, false],
+        [true, true, false],
+        [false, true, false],
+    ],
+];
+
+pub const Z_MINO_DATA: [[[bool; 3]; 3]; 4] = [
+    [
+        [true, true, false],
+        [false, true, true],
+        [false, false, false],
+    ],
+    [
+        [false, false, true],
+        [false, true, true],
+        [false, true, false],
+    ],
+    [
+        [false, false, false],
+        [true, true, false],
+        [false, true, true],
+    ],
+    [
+        [false, true, false],
+        [true, true, false],
+        [true, false, false],
+    ],
+];

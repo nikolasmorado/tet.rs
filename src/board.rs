@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use crate::mino::{GhostType, Tetromino, TetrominoType};
+use crate::mino::{GhostType, Tetromino, TetrominoType, PieceData};
 use crate::util::{gen_bag, mino_to_ghost};
 
 #[derive(Copy, Clone, PartialEq)]
@@ -107,15 +107,8 @@ impl Board {
     pub fn rotate_cc(&mut self) {
         let original = self.active_tetromino.as_ref().unwrap().clone();
         let mut mino = self.active_tetromino.as_mut().unwrap().clone();
-        let mut shape = [[false; 4]; 4];
 
-        for y in 0..4 {
-            for x in 0..4 {
-                shape[3 - x][y] = mino.shape[y][x];
-            }
-        }
-
-        mino.shape = shape;
+        mino.orientation = (mino.orientation + 3) % 4;
 
         self.clear();
         self.active_tetromino = Some(mino.clone());
@@ -128,15 +121,8 @@ impl Board {
     pub fn rotate_c(&mut self) {
         let original = self.active_tetromino.as_ref().unwrap().clone();
         let mut mino = self.active_tetromino.as_mut().unwrap().clone();
-        let mut shape = [[false; 4]; 4];
 
-        for y in 0..4 {
-            for x in 0..4 {
-                shape[x][3 - y] = mino.shape[y][x];
-            }
-        }
-
-        mino.shape = shape;
+        mino.orientation = (mino.orientation + 1) % 4;
 
         self.clear();
         self.active_tetromino = Some(mino.clone());
@@ -147,24 +133,54 @@ impl Board {
     }
 
     fn collision_check(&self, mino: &Tetromino, offset: (i32, i32)) -> bool {
-        for y in 0..4 {
-            for x in 0..4 {
-                if mino.shape[y][x] {
-                    if self.y as i32 + y as i32 + offset.1 >= self.height as i32
-                        || self.x as i32 + x as i32 + offset.0 < 0
-                        || self.x as i32 + x as i32 + offset.0 >= self.width as i32
-                    {
-                        return true;
-                    }
 
-                    match self.tiles[(self.y + y as i32 + offset.1) as usize]
-                        [(self.x + x as i32 + offset.0) as usize]
-                    {
-                        Status::Empty | Status::FillGhost(_) => continue,
-                        _ => return true,
+        match mino.piece_data {
+
+            PieceData::Small(data) => {
+               for y in 0..3 {
+                   for x in 0..3 {
+                        if data[mino.orientation][y][x] {
+                            if self.y as i32 + y as i32 + offset.1 >= self.height as i32
+                                || self.x as i32 + x as i32 + offset.0 < 0
+                                || self.x as i32 + x as i32 + offset.0 >= self.width as i32
+                            {
+                                return true;
+                            }
+
+                            match self.tiles[(self.y + y as i32 + offset.1) as usize]
+                                [(self.x + x as i32 + offset.0) as usize]
+                            {
+                                Status::Empty | Status::FillGhost(_) => continue,
+                                _ => return true,
+                            }
+                        } else {
+                            continue;
+                        }
+                        
+                   }
+               }
+            }
+            PieceData::Large(data) => {
+                for y in 0..5 {
+                    for x in 0..5 {
+                        if data[mino.orientation][y][x] {
+                            if self.y as i32 + y as i32 + offset.1 >= self.height as i32
+                                || self.x as i32 + x as i32 + offset.0 < 0
+                                || self.x as i32 + x as i32 + offset.0 >= self.width as i32
+                            {
+                                return true;
+                            }
+
+                            match self.tiles[(self.y + y as i32 + offset.1) as usize]
+                                [(self.x + x as i32 + offset.0) as usize]
+                            {
+                                Status::Empty | Status::FillGhost(_) => continue,
+                                _ => return true,
+                            }
+                        } else {
+                            continue;
+                        }
                     }
-                } else {
-                    continue;
                 }
             }
         }
@@ -269,35 +285,77 @@ impl Board {
             if !del {
                 let ghost_mino = tetromino.clone();
                 let mut ghost_y = self.y;
+
                 while !self.collision_check(&ghost_mino, (0, 1 + ghost_y - self.y)) {
                     ghost_y += 1;
                 }
-                for row in 0..4 {
-                    for col in 0..4 {
-                        if ghost_mino.shape[row][col] {
-                            if del {
-                                self.tiles[(row as i32 + ghost_y) as usize]
-                                    [(col as i32 + self.x) as usize] = Status::Empty
-                            } else {
-                                self.tiles[(row as i32 + ghost_y) as usize]
-                                    [(col as i32 + self.x) as usize] =
-                                    Status::FillGhost(mino_to_ghost(tetromino.tr_type))
+
+                match ghost_mino.piece_data {
+                    PieceData::Small(data) => {
+                        for row in 0..3 {
+                            for col in 0..3 {
+                                if data[ghost_mino.orientation][row][col] {
+                                    if del {
+                                        self.tiles[(row as i32 + ghost_y) as usize]
+                                            [(col as i32 + self.x) as usize] = Status::Empty
+                                    } else {
+                                        self.tiles[(row as i32 + ghost_y) as usize]
+                                            [(col as i32 + self.x) as usize] =
+                                            Status::FillGhost(mino_to_ghost(tetromino.tr_type))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    PieceData::Large(data) => {
+                        for row in 0..5 {
+                            for col in 0..5 {
+                                if data[ghost_mino.orientation][row][col] {
+                                    if del {
+                                        self.tiles[(row as i32 + ghost_y) as usize]
+                                            [(col as i32 + self.x) as usize] = Status::Empty
+                                    } else {
+                                        self.tiles[(row as i32 + ghost_y) as usize]
+                                            [(col as i32 + self.x) as usize] =
+                                            Status::FillGhost(mino_to_ghost(tetromino.tr_type))
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
 
-            for row in 0..4 {
-                for col in 0..4 {
-                    if tetromino.shape[row][col] {
-                        if del {
-                            self.tiles[(row as i32 + self.y) as usize]
-                                [(col as i32 + self.x) as usize] = Status::Empty
-                        } else {
-                            self.tiles[(row as i32 + self.y) as usize]
-                                [(col as i32 + self.x) as usize] =
-                                Status::FillType(tetromino.tr_type)
+            match tetromino.piece_data {
+                PieceData::Small(data) => {
+                    for row in 0..3 {
+                        for col in 0..3 {
+                            if data[tetromino.orientation][row][col] {
+                                if del {
+                                    self.tiles[(row as i32 + self.y) as usize]
+                                        [(col as i32 + self.x) as usize] = Status::Empty
+                                } else {
+                                    self.tiles[(row as i32 + self.y) as usize]
+                                        [(col as i32 + self.x) as usize] =
+                                        Status::FillType(tetromino.tr_type)
+                                }
+                            }
+                        }
+                    }
+                }
+                PieceData::Large(data) => {
+                    for row in 0..5 {
+                        for col in 0..5 {
+                            if data[tetromino.orientation][row][col] {
+                                if del {
+                                    self.tiles[(row as i32 + self.y) as usize]
+                                        [(col as i32 + self.x) as usize] = Status::Empty
+                                } else {
+                                    self.tiles[(row as i32 + self.y) as usize]
+                                        [(col as i32 + self.x) as usize] =
+                                        Status::FillType(tetromino.tr_type)
+                                }
+                            }
                         }
                     }
                 }
