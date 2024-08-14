@@ -31,6 +31,7 @@ fn main() {
     .unwrap();
 
     let mut board = Board::new((WIDTH, HEIGHT));
+    board.new_tetromino();
 
     let mut frame_count = 0;
     let start = std::time::Instant::now();
@@ -48,10 +49,10 @@ fn main() {
 
         print!("fps: {:.2}\r\n", fps);
 
-        board.apply_gravity();
-        board.draw_at(false);
+        board.update();
+        // board.draw_at(false);
 
-        for y in 0..board.height + 1 {
+        for y in 10..board.height + 1 {
             for x in 0..board.width + 2 {
                 if x == 0 && y == board.height {
                     // print!("└");
@@ -99,7 +100,8 @@ fn main() {
                         board.move_tetromino((-1, 0));
                     }
                     event::KeyCode::Down => {
-                        board.move_tetromino((0, 1));
+                        // board.move_tetromino((0, 1));
+                        board.soft_harddrop();
                     }
                     event::KeyCode::Up => {
                         board.rotate_c();
