@@ -76,55 +76,6 @@ impl Tetromino {
     }
 }
 
-pub const I_MINO: [[bool; 4]; 4] = [
-    [false, false, false, false],
-    [true, true, true, true],
-    [false, false, false, false],
-    [false, false, false, false],
-];
-
-pub const O_MINO: [[bool; 4]; 4] = [
-    [false, false, false, false],
-    [false, true, true, false],
-    [false, true, true, false],
-    [false, false, false, false],
-];
-
-pub const T_MINO: [[bool; 4]; 4] = [
-    [false, false, false, false],
-    [false, true, false, false],
-    [true, true, true, false],
-    [false, false, false, false],
-];
-
-pub const S_MINO: [[bool; 4]; 4] = [
-    [false, false, false, false],
-    [false, true, true, false],
-    [true, true, false, false],
-    [false, false, false, false],
-];
-
-pub const Z_MINO: [[bool; 4]; 4] = [
-    [false, false, false, false],
-    [true, true, false, false],
-    [false, true, true, false],
-    [false, false, false, false],
-];
-
-pub const J_MINO: [[bool; 4]; 4] = [
-    [false, false, false, false],
-    [true, false, false, false],
-    [true, true, true, false],
-    [false, false, false, false],
-];
-
-pub const L_MINO: [[bool; 4]; 4] = [
-    [false, false, false, false],
-    [false, false, true, false],
-    [true, true, true, false],
-    [false, false, false, false],
-];
-
 pub const I_MINO_DATA: [[[bool; 4]; 4]; 4] = [
     [
         [false, false, false, false],
